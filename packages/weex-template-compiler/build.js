@@ -10,6 +10,12 @@ var he = _interopDefault(require('he'));
 
 var emptyObject = Object.freeze({});
 
+/**
+ * Checks if a property key is a dangerous prototype pollution target.
+ */
+function isReservedKey(key) {
+  return key === '__proto__' || key === 'constructor' || key === 'prototype';
+}
 // These helpers produce better VM code in JS engines due to their
 // explicitness and function inlining.
 function isUndef (v) {
@@ -2814,7 +2820,9 @@ var Observer = function Observer (value) {
 Observer.prototype.walk = function walk (obj) {
   var keys = Object.keys(obj);
   for (var i = 0; i < keys.length; i++) {
-    defineReactive$$1(obj, keys[i]);
+    var key = keys[i];
+    if (isReservedKey(key)) continue;
+    defineReactive$$1(obj, key);
   }
 };
 
@@ -2888,6 +2896,7 @@ function defineReactive$$1 (
   customSetter,
   shallow
 ) {
+  if (isReservedKey(key)) return;
   var dep = new Dep();
 
   var property = Object.getOwnPropertyDescriptor(obj, key);
@@ -2948,6 +2957,10 @@ function defineReactive$$1 (
  * already exist.
  */
 function set (target, key, val) {
+  if (isReservedKey(key)) {
+    process.env.NODE_ENV !== 'production' && warn$1(("Avoid setting reserved property: " + key));
+    return val;
+  }
   if (process.env.NODE_ENV !== 'production' &&
     (isUndef(target) || isPrimitive(target))
   ) {
@@ -3031,7 +3044,7 @@ function mergeData (to, from) {
   for (var i = 0; i < keys.length; i++) {
     key = keys[i];
     // in case the object is already observed...
-    if (key === '__ob__') { continue }
+    if (key === '__ob__' || isReservedKey(key)) { continue }
     toVal = to[key];
     fromVal = from[key];
     if (!hasOwn(to, key)) {
